@@ -303,7 +303,7 @@ class PruningTest(tf.test.TestCase):
     tf.logging.info(pruning_hparams)
 
     w = tf.Variable(tf.linspace(1.0, 10.0, 10), name="weights")
-    _ = pruning.apply_mask(w)
+    _ = pruning.apply_mask(w, prune_option="first_order_gradient")
 
     p = pruning.Pruning(pruning_hparams)
     old_weight_update_op = p.old_weight_update_op()
@@ -338,7 +338,7 @@ class PruningTest(tf.test.TestCase):
     tf.logging.info(pruning_hparams)
 
     w = tf.Variable(tf.linspace(1.0, 10.0, 10), name="weights")
-    _ = pruning.apply_mask(w)
+    _ = pruning.apply_mask(w, prune_option="second_order_gradient")
 
     p = pruning.Pruning(pruning_hparams)
     old_weight_update_op = p.old_weight_update_op()
@@ -365,6 +365,76 @@ class PruningTest(tf.test.TestCase):
                              tf.nn.l2_normalize(tf.linspace(1.0, 10.0,
                                                             10))).eval())
       self.assertAllEqual(old_weight.eval(), old_old_weight.eval())
+
+  def testFirstOrderGradientBlockMasking(self):
+    param_list = [
+        "prune_option=first_order_gradient",
+        "gradient_decay_rate=0.5",
+        "block_height=2",
+        "block_width=2",
+        "threshold_decay=0",
+        "block_pooling_function=AVG",
+    ]
+    threshold = tf.Variable(0.0, name="threshold")
+    sparsity = tf.Variable(0.5, name="sparsity")
+    test_spec = ",".join(param_list)
+    pruning_hparams = pruning.get_pruning_hparams().parse(test_spec)
+
+    weights_avg = tf.constant([[0.1, 0.1, 0.2, 0.2], [0.1, 0.1, 0.2, 0.2],
+                               [0.3, 0.3, 0.4, 0.4], [0.3, 0.3, 0.4, 0.4]])
+    expected_mask = [[0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0],
+                     [1., 1., 1., 1.], [1., 1., 1., 1.]]
+
+    w = tf.Variable(weights_avg, name="weights")
+    _ = pruning.apply_mask(w, prune_option="first_order_gradient")
+
+    p = pruning.Pruning(pruning_hparams, sparsity=sparsity)
+    old_weight_update_op = p.old_weight_update_op()
+    gradient_update_op = p.gradient_update_op()
+
+    with self.cached_session() as session:
+      tf.global_variables_initializer().run()
+      session.run(gradient_update_op)
+      session.run(old_weight_update_op)
+
+      weights = pruning.get_weights()
+      _ = pruning.get_old_weights()
+      gradients = pruning.get_gradients()
+
+      weight = weights[0]
+      gradient = gradients[0]
+
+      _, new_mask = p._maybe_update_block_mask(weight, threshold, gradient)
+      self.assertAllEqual(new_mask.get_shape(), weight.get_shape())
+      mask_val = new_mask.eval()
+      self.assertAllEqual(mask_val, expected_mask)
+
+  def testWeightSparsityTiebreaker(self):
+    param_list = [
+        "begin_pruning_step=1", "pruning_frequency=1", "end_pruning_step=100",
+        "target_sparsity=0.5",
+        "threshold_decay=0.0"
+    ]
+    test_spec = ",".join(param_list)
+    pruning_hparams = pruning.get_pruning_hparams().parse(test_spec)
+
+    with tf.variable_scope("layer1"):
+      w1 = tf.Variable(np.ones([100], dtype=np.float32),
+                       name="weights")
+      _ = pruning.apply_mask(w1)
+
+    p = pruning.Pruning(pruning_hparams)
+    mask_update_op = p.conditional_mask_update_op()
+    increment_global_step = tf.assign_add(self.global_step, 1)
+
+    with self.cached_session() as session:
+      tf.global_variables_initializer().run()
+      for _ in range(110):
+        session.run(mask_update_op)
+        session.run(increment_global_step)
+
+      self.assertAllClose(
+          session.run(pruning.get_weight_sparsity()), [0.5])
 
 
 if __name__ == "__main__":
