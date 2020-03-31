@@ -1,5 +1,5 @@
 # coding=utf-8
-# Copyright 2019 The Google Research Authors.
+# Copyright 2020 The Google Research Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -31,7 +31,7 @@ import numpy as np
 import tensorflow_constrained_optimization as tfco
 
 
-flags.DEFINE_string("data_file", "datasets/synthetic.npy", "Path to dataset.")
+flags.DEFINE_string("data_file", None, "Path to dataset.")
 flags.DEFINE_integer("loops_con", 5000,
                      "No. of iterations for Lagrangian optimizer.")
 flags.DEFINE_integer("loops_unc", 2500,
@@ -60,8 +60,9 @@ def run_experiment():
   lr_range_con = [0.001, 0.01, 0.1, 1.0]
 
   # Load dataset.
-  with open(FLAGS.data_file, "r") as f:
-    train_set, vali_set, test_set = np.load(f, allow_pickle=True)
+  with open(FLAGS.data_file, "rb") as f:
+    train_set, vali_set, test_set = np.load(
+        f, allow_pickle=True, fix_imports=True)
   x_vali, y_vali, z_vali = vali_set
 
   ##################################################

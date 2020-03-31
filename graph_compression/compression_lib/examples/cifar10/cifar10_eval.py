@@ -1,5 +1,5 @@
 # coding=utf-8
-# Copyright 2019 The Google Research Authors.
+# Copyright 2020 The Google Research Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -40,9 +40,10 @@ import math
 import sys
 import time
 
-from compression_lib.examples.cifar10 import cifar10_compression as cifar10
 import numpy as np
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
+
+from graph_compression.compression_lib.examples.cifar10 import cifar10_compression as cifar10
 
 FLAGS = None
 

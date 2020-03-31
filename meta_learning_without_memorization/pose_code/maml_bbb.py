@@ -1,5 +1,5 @@
 # coding=utf-8
-# Copyright 2019 The Google Research Authors.
+# Copyright 2020 The Google Research Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -31,8 +31,8 @@ from absl import app
 from absl import flags
 import numpy as np
 from six.moves import range
-import tensorflow as tf
-from tensorflow.keras.layers import MaxPooling2D
+import tensorflow.compat.v1 as tf
+from tensorflow.compat.v1.keras.layers import MaxPooling2D
 import tensorflow_probability as tfp
 from tensorflow_probability.python.layers import util as tfp_layers_util
 

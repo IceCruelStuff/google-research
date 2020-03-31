@@ -1,5 +1,5 @@
 # coding=utf-8
-# Copyright 2019 The Google Research Authors.
+# Copyright 2020 The Google Research Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -187,8 +187,8 @@ class Visualizer(object):
     time.sleep(self.freq)
     return observation, rewards, done, infos
 
-  def obs2state(self, obs):
-    return self.env.obs2state(obs)
+  def discrete_state(self, obs):
+    return self.env.discrete_state(obs)
 
   def finish(self):
     if self.save_video:

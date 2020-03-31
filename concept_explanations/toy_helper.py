@@ -1,5 +1,5 @@
 # coding=utf-8
-# Copyright 2019 The Google Research Authors.
+# Copyright 2020 The Google Research Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -40,7 +40,7 @@ from skimage.segmentation import felzenszwalb
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from sklearn.linear_model import LogisticRegression
-from tensorflow import set_random_seed
+from tensorflow.compat.v1 import set_random_seed
 
 seed(0)
 set_random_seed(0)

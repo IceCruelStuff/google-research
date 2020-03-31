@@ -1,5 +1,5 @@
 # coding=utf-8
-# Copyright 2019 The Google Research Authors.
+# Copyright 2020 The Google Research Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -24,9 +24,9 @@ import os.path as osp
 from absl import logging
 import numpy as np
 from PIL import Image
-import tensorflow as tf
-from tensorflow import nest
-from tensorflow.io import gfile
+import tensorflow.compat.v1 as tf
+from tensorflow.compat.v1 import nest
+from tensorflow.compat.v1.io import gfile
 
 from stacked_capsule_autoencoders.capsules.train import tools as _tools
 

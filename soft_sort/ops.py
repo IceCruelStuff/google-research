@@ -1,5 +1,5 @@
 # coding=utf-8
-# Copyright 2019 The Google Research Authors.
+# Copyright 2020 The Google Research Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Lint as: python3
 """This module defines the softranks and softsort operators."""
 
 from __future__ import absolute_import
@@ -25,9 +26,10 @@ from soft_sort import soft_quantilizer
 
 
 DIRECTIONS = ('ASCENDING', 'DESCENDING')
+_TARGET_WEIGHTS_ARG = 'target_weights'
 
 
-def _preprocess(x, axis):
+def preprocess(x, axis):
   """Reshapes the input data to make it rank 2 as required by SoftQuantilizer.
 
   The SoftQuantilizer expects an input tensor of rank 2, where the first
@@ -39,37 +41,47 @@ def _preprocess(x, axis):
    axis: (int) the axis to be turned into the second dimension.
 
   Returns:
-   a Tensor<float>[batch, n] where n is the dimensions over the axis and batch
-   the product of all other dimensions
+   a Tuple(Tensor<float>[batch, n], List[int], tf.Tensor) where
+    - the first element is the output tensor (n being the dimensions over the
+    axis and batch the product of all other dimensions)
+    - the second element represents the transposition that was applied as a list
+     of integers.
+    - the third element the shape after the transposition was applied.
+
+   Those three outputs are necessary in order to easily perform the inverse
+   transformation down the line.
   """
   dims = list(range(x.shape.rank))
   dims[-1], dims[axis] = dims[axis], dims[-1]
-  z = tf.transpose(x, dims) if dims[axis] != dims[-1] else x
-  return tf.reshape(z, (-1, tf.shape(x)[axis]))
+  x_transposed = tf.transpose(x, dims)
+  x_flat = tf.reshape(x_transposed, (-1, tf.shape(x)[axis]))
+  return x_flat, dims, tf.shape(x_transposed)
 
 
-def _postprocess(x, shape, axis):
-  """Applies the inverse transformation of _preprocess.
+def postprocess(x, transposition, shape):
+  """Applies the inverse transformation of preprocess.
 
   Args:
    x: Tensor<float>[batch, n]
-   shape: TensorShape of the desired output.
-   axis: (int) the axis along which the original tensor was processed.
+   transposition: Tensor<int>[rank] 1D tensor representing the transposition
+    that was used to preprocess the input tensor. Since transpositions are
+    involutions, applying the same transposition brings back to the original
+    shape.
+   shape: TensorShape of the intermediary output.
 
   Returns:
-   A Tensor<float> with the shape given in argument.
+   A Tensor<float> that is similar in shape to the tensor before preprocessing.
   """
-  s = list(shape)
-  s[axis], s[-1] = s[-1], s[axis]
-  z = tf.reshape(x, s)
-
-  # Transpose to get back to the original shape
-  dims = list(range(shape.rank))
-  dims[-1], dims[axis] = dims[axis], dims[-1]
-  return tf.transpose(z, dims) if dims[axis] != dims[-1] else z
+  shape = tf.concat([shape[:-1], tf.shape(x)[-1:]], axis=0)
+  return tf.transpose(tf.reshape(x, shape), transposition)
 
 
-def softsort(x, direction='ASCENDING', axis=-1, **kwargs):
+def softsort(
+    x,
+    direction = 'ASCENDING',
+    axis = -1,
+    topk = None,
+    **kwargs):
   """Applies the softsort operator on input tensor x.
 
   This operator acts as differentiable alternative to tf.sort.
@@ -78,23 +90,34 @@ def softsort(x, direction='ASCENDING', axis=-1, **kwargs):
    x: the input tensor. It can be either of shape [batch, n] or [n].
    direction: the direction 'ASCENDING' or 'DESCENDING'
    axis: the axis on which to operate the sort.
+   topk: if not None, the number of topk sorted values that are going to be
+    computed. Using topk improves the speed of the algorithms since it solves
+    a simpler problem.
    **kwargs: see SoftQuantilizer for possible parameters.
 
   Returns:
-   A tensor of the same shape as the input.
+   A tensor of sorted values of the same shape as the input tensor.
   """
   if direction not in DIRECTIONS:
     raise ValueError('`direction` should be one of {}'.format(DIRECTIONS))
 
-  z = _preprocess(x, axis)
-  descending = (direction == 'DESCENDING')
-  sorter = soft_quantilizer.SoftQuantilizer(z, descending=descending, **kwargs)
+  if topk is not None and _TARGET_WEIGHTS_ARG in kwargs:
+    raise ValueError(
+        'Conflicting arguments: both topk and target_weights are being set.')
 
-  # In case we are applying some quantization while sorting, the number of
-  # outputs should be the number of targets.
-  shape = x.shape.as_list()
-  shape[axis] = sorter.target_weights.shape[1]
-  return _postprocess(sorter.softsort, tf.TensorShape(shape), axis)
+  z, transposition, shape = preprocess(x, axis)
+  descending = (direction == 'DESCENDING')
+
+  if topk is not None:
+    n = tf.cast(tf.shape(z)[-1], dtype=x.dtype)
+    kwargs[_TARGET_WEIGHTS_ARG] = 1.0 / n * tf.concat(
+        [tf.ones(topk, dtype=x.dtype), (n - topk) * tf.ones(1, dtype=x.dtype)],
+        axis=0)
+
+  sorter = soft_quantilizer.SoftQuantilizer(z, descending=descending, **kwargs)
+  # We need to compute topk + 1 values in case we use topk
+  values = sorter.softsort if topk is None else sorter.softsort[:, :-1]
+  return postprocess(values, transposition, shape)
 
 
 def softranks(x, direction='ASCENDING', axis=-1, zero_based=True, **kwargs):
@@ -118,17 +141,17 @@ def softranks(x, direction='ASCENDING', axis=-1, zero_based=True, **kwargs):
     raise ValueError('`direction` should be one of {}'.format(DIRECTIONS))
 
   descending = (direction == 'DESCENDING')
-  z = _preprocess(x, axis)
+  z, transposition, shape = preprocess(x, axis)
   sorter = soft_quantilizer.SoftQuantilizer(z, descending=descending, **kwargs)
   ranks = sorter.softcdf * tf.cast(tf.shape(z)[1], dtype=x.dtype)
   if zero_based:
     ranks -= tf.cast(1.0, dtype=x.dtype)
+  return postprocess(ranks, transposition, shape)
 
-  return _postprocess(ranks, x.shape, axis)
 
-
-def softquantiles(x, quantiles, quantile_width=None, axis=-1, **kwargs):
-  """Computes a (single) soft quantile via optimal transport.
+def softquantiles(
+    x, quantiles, quantile_width=None, axis=-1, may_squeeze=True, **kwargs):
+  """Computes soft quantiles via optimal transport.
 
   This operator takes advantage of the fact that an exhaustive softsort is not
   required to recover a single quantile. Instead, one can transport all
@@ -150,6 +173,8 @@ def softquantiles(x, quantiles, quantile_width=None, axis=-1, **kwargs):
     more points further away from the quantile. If None, the width is set at 1/n
     where n is the number of values considered (the size along the 'axis').
    axis: (int) the axis along which to compute the quantile.
+   may_squeeze: (bool) should we squeeze the output tensor in case of a single
+    quantile.
    **kwargs: see SoftQuantilizer for possible extra parameters.
 
   Returns:
@@ -163,7 +188,6 @@ def softquantiles(x, quantiles, quantile_width=None, axis=-1, **kwargs):
     tf.errors.InvalidArgumentError when the quantiles and quantile width are not
     correct, namely quantiles are either not in sorted order or the
     quantile_width is too large.
-
   """
   if isinstance(quantiles, float):
     quantiles = [quantiles]
@@ -218,6 +242,41 @@ def softquantiles(x, quantiles, quantile_width=None, axis=-1, **kwargs):
 
     # In the specific case where we want a single quantile, squeezes the
     # quantile dimension.
-    return tf.cond(tf.equal(tf.shape(result)[axis], 1),
-                   lambda: tf.squeeze(result, axis=axis),
-                   lambda: result)
+    can_squeeze = tf.equal(tf.shape(result)[axis], 1)
+    if tf.math.logical_and(can_squeeze, may_squeeze):
+      result = tf.squeeze(result, axis=axis)
+    return result
+
+
+def soft_quantile_normalization(x, f, axis=-1, **kwargs):
+  """Applies a (soft) quantile normalization of x with f.
+
+  The usual quantile normalization operator uses the empirical values contained
+  in x to construct an empirical density function (EDF), assign to each value in
+  x its corresponding EDF (i.e. its rank divided by the size of x), and then
+  replace it with the corresponding quantiles described in vector f
+  (see https://en.wikipedia.org/wiki/Quantile_normalization).
+
+  The operator proposed here does so in a differentiable manner, by computing
+  first a distribution of ranks for x (stored in an optimal transport table) and
+  then take averages of those values stored in f.
+
+  Note that the current function only works when f is a vector of sorted values
+  corresponding to the quantiles of a distribution at levels [1/m ,..., m / m],
+  where m is the size of f.
+
+  Args:
+   x: Tensor<float> of any shape.
+   f: Tensor<float>[m] where m can be or not the size of x along the axis.
+    Usually it is. f should be sorted.
+   axis: the axis along which the tensor x should be quantile normalized.
+   **kwargs: extra parameters passed to the SoftQuantilizer.
+
+  Returns:
+   A tensor of the same shape of x.
+  """
+  z, transposition, shape = preprocess(x, axis)
+  sorter = soft_quantilizer.SoftQuantilizer(
+      z, descending=False, num_targets=f.shape[-1], **kwargs)
+  y = 1.0 / sorter.weights * tf.linalg.matvec(sorter.transport, f)
+  return postprocess(y, transposition, shape)

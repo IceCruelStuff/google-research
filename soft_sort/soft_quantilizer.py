@@ -1,5 +1,5 @@
 # coding=utf-8
-# Copyright 2019 The Google Research Authors.
+# Copyright 2020 The Google Research Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Lint as: python3
 """Soft Sorting core library.
 
 Computes all sort of statistical objects related to (soft) sorting, such as the
@@ -28,49 +29,10 @@ Operator" by Cuturi M., Teboul O., Vert JP.
 (see https://arxiv.org/pdf/1905.11885.pdf)
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-import math
 import gin
 import tensorflow.compat.v2 as tf
 from soft_sort import sinkhorn
-
-
-@gin.configurable
-def group_rescale(x, scale=1.0, min_std=1e-10, is_logistic=True):
-  """Applies a sigmoid map on standardized centered inputs.
-
-  This logistic map, when applied on the output of a neural network,
-  redistributes the activations into [0,1] in a smooth adaptative way, helping
-  the numerical stability of the Sinkhorn algorithm while maintaining a
-  well behaved back propagation.
-
-  In case of logistic sigmoid, this map is exactly the CDF of a logistic
-  distribution. See https://en.wikipedia.org/wiki/Logistic_distribution for
-  details, in particular the variance of the distribution. In case of an atan
-  sigmoid (is_logistic == False), it is somewhat related to the CDF of a Cauchy
-  distribution and presents the advantage to have better behaved gradients.
-
-  Args:
-   x: Tensor<float>[batch, n]
-   scale: (float) a scale to be applied after standardizing and centering the
-    inputs.
-   min_std: (float) minimum standard deviation to consider to avoid degenerated
-    values when centering and rescaling the input x.
-   is_logistic: uses either a logistic sigmoid or an arctan.
-
-  Returns:
-   A Tensor<float>[batch, n] after application of the sigmoid map.
-  """
-  mean = tf.math.reduce_mean(x, axis=1)
-  std = tf.maximum(tf.math.reduce_std(x, axis=1), min_std)
-  if is_logistic:
-    scale *= math.sqrt(3.0) / math.pi
-  s = tf.cast(scale * std, dtype=x.dtype)
-  squashing_fn = tf.math.sigmoid if is_logistic else tf.math.atan
-  return squashing_fn((x - mean[:, tf.newaxis]) / s[:, tf.newaxis])
+from soft_sort import squash
 
 
 @gin.configurable
@@ -96,8 +58,8 @@ class SoftQuantilizer(object):
    target_weights: Tensor<float>[batch, n], the weights of the target.
    transport: Tensor<float>[batch, n, m], the transport matrix obtain via
     Sinkhorn algorithm.
-   num_iterations: (int) the number of Sinkhorn updates.
-   sinkhorn_error: (float) the error in the Sinkhorn algorithm, due to the fact
+   iterations: (int) the number of Sinkhorn updates.
+   sinkhorn_err: (float) the error in the Sinkhorn algorithm, due to the fact
     that we stop at a given iteration.
    softcdf: Tensor<float>[batch, n]: the obtained cdf of the input x.
    softsort: Tensor<float>[batch, n]: the obtained soft sorted values of x.
@@ -105,8 +67,7 @@ class SoftQuantilizer(object):
 
   def __init__(
       self, x=None, weights=None, num_targets=None, target_weights=None, y=None,
-      epsilon=1e-3, p=2.0, sinkhorn_threshold=1e-3, stabilized=True,
-      descending=False, scale_input_fn=group_rescale, **kwargs):
+      descending=False, scale_input_fn=squash.group_rescale, **kwargs):
     """Initializes the internal state of the SoftSorter.
 
     Args:
@@ -124,11 +85,6 @@ class SoftQuantilizer(object):
       the list, array or tensor must be sorted in increasing order in order to
       perform a soft sort. If left to None, it will be set to num_targets values
       [0,1/(num_targets-1),...,1] copied N times.
-     epsilon: scale of the entropic relaxation (see sinkhorn.py).
-     p: (float) power of the distance function (see sinkhorn.py).
-     sinkhorn_threshold: (float) treshold (see sinkhorn.py).
-     stabilized : log-space computations when true. Slower but numerically more
-      stable.
      descending: (bool), if True, targets will be reversed so as to produce a
       decending sorting.
      scale_input_fn: function used to scale input entries so that they fit into
@@ -138,14 +94,9 @@ class SoftQuantilizer(object):
       the input values'range.
      **kwargs: extra parameters to the Sinkhorn algorithm.
     """
-    self._stabilized = stabilized
     self._scale_input_fn = scale_input_fn
-    self._kwargs = kwargs  # The sinkhorn params.
-    self.num_iterations = 0
+    self.iterations = 0
     self._descending = descending
-    self._epsilon = epsilon
-    self._p = p
-    self._sinkhorn_threshold = sinkhorn_threshold
     self._kwargs = kwargs
     self.reset(x, y, weights, target_weights, num_targets)
 
@@ -161,12 +112,9 @@ class SoftQuantilizer(object):
     self._set_input(x, weights)
     self._set_target(y, num_targets, target_weights)
 
-    sinkhorn_fn = sinkhorn.log_sinkhorn if self._stabilized else sinkhorn.sinkhorn
     # We run sinkhorn on the rescaled input values x_s.
-    self.transport, self.sinkhorn_error, self.num_iterations = sinkhorn_fn(
-        self._x_s, self.y, self.weights, self.target_weights,
-        self._epsilon, self._p, self._sinkhorn_threshold,
-        **self._kwargs)
+    self.transport = sinkhorn.sinkhorn(
+        self._x_s, self.y, self.weights, self.target_weights, **self._kwargs)
 
   @property
   def softcdf(self):
@@ -221,7 +169,8 @@ class SoftQuantilizer(object):
     # Then we set the target vector itself. It must be sorted.
     if y is None:
       m = tf.cast(self._num_targets, dtype=self.dtype)
-      y = tf.range(0, m, dtype=self.dtype) / tf.math.maximum(1.0, m - 1.0)
+      one = tf.cast(1.0, dtype=self.dtype)
+      y = tf.range(0, m, dtype=self.dtype) / tf.math.maximum(one, m - one)
     self.y = self._cast_may_repeat(y)
     if self._descending:
       self.y = tf.reverse(self.y, (1,))

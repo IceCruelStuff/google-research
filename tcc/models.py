@@ -1,5 +1,5 @@
 # coding=utf-8
-# Copyright 2019 The Google Research Authors.
+# Copyright 2020 The Google Research Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -25,8 +25,8 @@ from keras_applications import resnet_v2
 
 import tensorflow.compat.v2 as tf
 
-from tensorflow.keras import regularizers
-from tensorflow.keras.models import Model
+from tensorflow.compat.v1.keras import regularizers
+from tensorflow.compat.v1.keras.models import Model
 
 from tcc.config import CONFIG
 

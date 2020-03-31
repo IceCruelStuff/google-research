@@ -1,5 +1,5 @@
 # coding=utf-8
-# Copyright 2019 The Google Research Authors.
+# Copyright 2020 The Google Research Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -24,11 +24,11 @@ import gin
 import matplotlib.pyplot as plt
 import numpy as np
 import os
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 import time
 from absl import app
 from absl import flags
-from tensorflow import gfile
+from tensorflow.compat.v1 import gfile
 from tqdm import tqdm
 
 from weak_disentangle import datasets, viz, networks, evaluate

@@ -1,5 +1,5 @@
 # coding=utf-8
-# Copyright 2019 The Google Research Authors.
+# Copyright 2020 The Google Research Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ This is a variant of inception v3 by removing all the paddings. This change
 allows the network to be trained and inference run with different patch size
 (Fully Convolutional Network, FCN mode) while having the same inference results.
 """
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 from tensorflow.contrib import slim as contrib_slim
 
 slim = contrib_slim

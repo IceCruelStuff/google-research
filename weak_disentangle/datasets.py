@@ -1,5 +1,5 @@
 # coding=utf-8
-# Copyright 2019 The Google Research Authors.
+# Copyright 2020 The Google Research Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@ from disentanglement_lib.data.ground_truth import mpi3d
 from disentanglement_lib.data.ground_truth import cars3d
 from disentanglement_lib.data.ground_truth import norb
 import numpy as np
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 import gin
 
 from weak_disentangle import utils as ut

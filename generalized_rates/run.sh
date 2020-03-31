@@ -1,4 +1,4 @@
-# Copyright 2019 The Google Research Authors.
+# Copyright 2020 The Google Research Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -22,4 +22,4 @@ source ./bin/activate
 pip3 install -r generalized_rates/requirements.txt
 
 python -m generalized_rates.fmeasure_optimization.experiments\
-  --data_file=datasets/synthetic.npy
+  --data_file=./generalized_rates/datasets/synthetic.npy

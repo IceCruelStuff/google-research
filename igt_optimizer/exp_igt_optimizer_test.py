@@ -1,5 +1,5 @@
 # coding=utf-8
-# Copyright 2019 The Google Research Authors.
+# Copyright 2020 The Google Research Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@ from __future__ import print_function
 
 import numpy as np
 from six.moves import zip
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 
 from igt_optimizer import exp_igt_optimizer
 # pylint:disable=g-direct-tensorflow-import

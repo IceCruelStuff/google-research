@@ -1,5 +1,5 @@
 # coding=utf-8
-# Copyright 2019 The Google Research Authors.
+# Copyright 2020 The Google Research Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -26,7 +26,7 @@ from __future__ import print_function
 
 import math
 from absl import flags
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 from state_of_sparsity.sparse_rn50.pruning_layers import sparse_conv2d
 from state_of_sparsity.sparse_rn50.pruning_layers import sparse_fully_connected
 from tensorflow.contrib import layers as contrib_layers

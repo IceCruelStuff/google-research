@@ -1,5 +1,5 @@
 # coding=utf-8
-# Copyright 2019 The Google Research Authors.
+# Copyright 2020 The Google Research Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@
 # pylint: disable=line-too-long, missing-docstring, g-importing-member
 # pylint: disable=g-wrong-blank-lines, missing-super-argument
 import gin
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 import tensorflow_probability as tfp
 from functools import partial
 from collections import OrderedDict

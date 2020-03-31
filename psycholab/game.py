@@ -1,5 +1,5 @@
 # coding=utf-8
-# Copyright 2019 The Google Research Authors.
+# Copyright 2020 The Google Research Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -25,18 +25,10 @@ import numpy as np
 # Careful with convention 'up' is displayed as -1 on the grid plot.
 MOVING_ACTIONS = {
     'stand': np.array([0, 0]),
-    'up': np.array([-1, 0]),
-    'down': np.array([1, 0]),
-    'left': np.array([0, -1]),
-    'right': np.array([0, 1])
-}
-
-MOVING_ACTIONS = {
-    'stand': np.array([0, 0]),
-    'up': np.array([-1, 0]),
-    'down': np.array([1, 0]),
-    'left': np.array([0, -1]),
-    'right': np.array([0, 1])
+    'up': np.array([0, -1]),
+    'down': np.array([0, 1]),
+    'left': np.array([-1, 0]),
+    'right': np.array([1, 0])
 }
 
 
@@ -225,32 +217,32 @@ class Game(object):
     self.players_cells = {}
     self.players_items = {}
     self.items_cells = {}
-    self.player_walls = np.zeros((self.height, self.width))
-    self.absolute_walls = np.zeros((self.height, self.width))
+    self.player_walls = np.zeros((self.width, self.height))
+    self.absolute_walls = np.zeros((self.width, self.height))
     self.content = []
-    for _ in range(self.height):
+    for _ in range(self.width):
       cell_content = []
-      for _ in range(self.width):
+      for _ in range(self.height):
         cell_content.append(collections.defaultdict(int))
       self.content.append(cell_content)
 
-    for i, line in enumerate(self.ascii_art):
-      for j, char in enumerate(line):
+    for y, line in enumerate(self.ascii_art):
+      for x, char in enumerate(line):
         if char == '#':
-          self.absolute_walls[i, j] = 1
+          self.absolute_walls[x, y] = 1
         elif char == '=':
-          self.player_walls[i, j] = 1
+          self.player_walls[x, y] = 1
         else:
-          self.content[i][j][char] += 1
+          self.content[x][y][char] += 1
 
           if char.isupper():
-            self.players_cells[char] = np.array([i, j])
+            self.players_cells[char] = np.array([x, y])
             self.players_items[char] = collections.defaultdict(int)
           if char.islower():
             if char in self.items_cells:
-              self.items_cells[char].append(np.array([i, j]))
+              self.items_cells[char].append(np.array([x, y]))
             else:
-              self.items_cells[char] = [np.array([i, j])]
+              self.items_cells[char] = [np.array([x, y])]
 
     assert set(self.players.keys()) >= set(self.players_cells.keys()), (
         'some players may have no description')
@@ -658,20 +650,51 @@ class Game(object):
 
     return image
 
-  def obs2state(self, obs):
-    # For each player, obs contains its (x, y) positions.
-    s = 0
+  def discrete_state(self, obs):
+    """Converts an x,y position into a discrete state.
+
+    Args:
+      obs: list of discrete (x,y) positions of players.
+
+    Returns:
+      state: a unique discrete number associated with the list of positions.
+    """
+    state = 0
     for i, (x, y) in enumerate(obs):
-      s += (x * self.width + y) * ((self.width * self.height) ** i)
-    return s
+      state += (x * self.width + y) * ((self.width * self.height) ** i)
+    return state
+
+  def one_hot_state(self, obs):
+    """Converts a list of x,y positions into a "one-hot" vector.
+
+    Args:
+      obs: list of discrete (x,y) positions of players.
+
+    Returns:
+      state: numpy array of size (1, (width + height) * num_players).
+      The first 'width' elements encode the column for the first player.
+      They are all zeros except the x-th which is 1.
+      (similar for second part about encoding the row for the first player
+      and then for all other players).
+      This is not exactly a one-hot encoding since multiple ones are
+      set (two by player).
+
+    Ex: in a 2-players 3x3 grid, obs = ((x1, y1), (x2, y2)) = ((2, 3), (1, 1))
+    one_hot_state(obs) = ((0,1,0 , 0,0,1 , 1,0,0 , 1,0,0))
+    """
+    state = np.zeros((1, (self.width + self.height) * self.num_players))
+    for i, (x, y) in enumerate(obs):
+      state[0, i * (self.width + self.height) + x] = 1
+      state[0, i * (self.width + self.height) + self.width + y] = 1
+    return state
 
   def generate_observations(self):
     if self.tabular:
-      state = []
+      obs = []
       for player in self.players_order:
         x, y = self.players_cells[player]
-        state.append((x, y))
-      return state
+        obs.append((x, y))
+      return obs
     else:
       return self.render()
 

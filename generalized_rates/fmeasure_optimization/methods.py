@@ -1,5 +1,5 @@
 # coding=utf-8
-# Copyright 2019 The Google Research Authors.
+# Copyright 2020 The Google Research Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@ from __future__ import print_function
 
 import evaluation
 import numpy as np
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 import tensorflow_constrained_optimization as tfco
 
 
@@ -181,7 +181,7 @@ def lagrangian_optimizer_fmeasure(
 
   Returns:
     stochastic_model containing list of models and probabilities,
-    determistic_model
+    deterministic_model.
   """
   x_train, y_train, z_train = train_set
   dimension = x_train.shape[-1]
@@ -209,11 +209,11 @@ def lagrangian_optimizer_fmeasure(
   fm1 = tfco.f_score_lower_bound(context1)
   fm0 = tfco.f_score_upper_bound(context0)
 
-  # Rate minimization.
+  # Rate minimization problem.
   problem = tfco.RateMinimizationProblem(-fm_overall, [fm0 <= fm1 + epsilon])
 
   # Optimizer.
-  optimizer = tfco.LagrangianOptimizer(
+  optimizer = tfco.LagrangianOptimizerV1(
       tf.train.AdamOptimizer(learning_rate=learning_rate),
       constraint_optimizer=tf.train.AdamOptimizer(
           learning_rate=learning_rate_constraint))

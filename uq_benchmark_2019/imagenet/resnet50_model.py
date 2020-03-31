@@ -1,5 +1,5 @@
 # coding=utf-8
-# Copyright 2019 The Google Research Authors.
+# Copyright 2020 The Google Research Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -46,10 +46,10 @@ import functools
 import numpy as np
 import tensorflow.compat.v2 as tf
 
-from tensorflow.keras import backend
-from tensorflow.keras import layers
-from tensorflow.keras import models
-from tensorflow.keras import regularizers
+from tensorflow.compat.v1.keras import backend
+from tensorflow.compat.v1.keras import layers
+from tensorflow.compat.v1.keras import models
+from tensorflow.compat.v1.keras import regularizers
 from tensorflow_probability import distributions as tfd
 from tensorflow_probability import layers as tfpl
 

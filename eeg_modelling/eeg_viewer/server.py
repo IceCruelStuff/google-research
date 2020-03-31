@@ -1,5 +1,5 @@
 # coding=utf-8
-# Copyright 2019 The Google Research Authors.
+# Copyright 2020 The Google Research Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -30,7 +30,7 @@ from absl import logging
 import flask
 from flask import wrappers as flask_wrappers
 from gevent.pywsgi import WSGIServer
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 from werkzeug.contrib import wrappers as werkzeug_wrappers
 from google.protobuf.message import DecodeError
 

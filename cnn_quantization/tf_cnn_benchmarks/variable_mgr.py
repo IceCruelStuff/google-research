@@ -1,5 +1,5 @@
 # coding=utf-8
-# Copyright 2019 The Google Research Authors.
+# Copyright 2020 The Google Research Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@ from __future__ import print_function
 import contextlib
 import re
 
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 
 from cnn_quantization.tf_cnn_benchmarks import allreduce
 from cnn_quantization.tf_cnn_benchmarks import batch_allreduce

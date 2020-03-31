@@ -1,5 +1,5 @@
 # coding=utf-8
-# Copyright 2019 The Google Research Authors.
+# Copyright 2020 The Google Research Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ https://arxiv.org/abs/1811.10636
 """
 
 import numpy as np
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 from tensorflow.contrib import framework as contrib_framework
 from tensorflow.contrib import slim as contrib_slim
 from tensorflow.contrib.slim import initializers as contrib_slim_initializers
